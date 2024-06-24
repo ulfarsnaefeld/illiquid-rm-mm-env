@@ -1,10 +1,11 @@
-
 import gymnasium as gym
 import numpy as np
 import math
+import matplotlib.pyplot as plt
 from stable_baselines3 import DQN
 from stable_baselines3.common.env_checker import check_env
-from runstats import *
+from stable_baselines3.common.monitor import Monitor
+from stable_baselines3.common.results_plotter import load_results, ts2xy, plot_results
 
 class MarketSimEnv(gym.Env):
     metadata = {"render_modes": ["human"], "render_fps": 30}
@@ -175,15 +176,24 @@ if __name__ == "__main__":
         tf=0.5,
         k=1.5,
         A=10)
+
+    env = Monitor(env, './logs/')  # Use the Monitor wrapper
+
     check_env(env)
 
     model = DQN('MlpPolicy', env, verbose=1, exploration_fraction=0.5)
     model.learn(total_timesteps=100_000)
 
-    obs, info = env.reset()
-    done = False
+    # # Load results and plot
+    # def plot_results(log_folder, title='Learning Curve'):
+    #     x, y = ts2xy(load_results(log_folder), 'timesteps')
+    #     y = np.convolve(y, np.ones(50)/50, mode='valid')  # Moving average
+    #     x = x[len(x) - len(y):]  # Trim x to match y length after convolution
+    #     plt.figure(title)
+    #     plt.plot(x, y)
+    #     plt.xlabel('Timesteps')
+    #     plt.ylabel('Rewards')
+    #     plt.title(title)
+    #     plt.show()
 
-    while not done:
-        action, _states = model.predict(obs)
-        obs, reward, done, truncated, info = env.step(action)
-        env.render()
+    # plot_results('./logs')
