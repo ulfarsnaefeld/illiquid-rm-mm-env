@@ -43,6 +43,8 @@ def train_and_save_model(params, param_type, param_value):
 def train_all_models():
     base_params = {'s0': 100, 'T': 100, 'v': 1, 'q0': 0, 'c0': 100_000, 'sigma': 0.1, 'drift': 0.005, 'gamma': 0.95, 'itp': 0.1, 'ms': 0.03, 'tf': 1}
 
+    illiquid_params = {'s0': 100, 'T': 100, 'v': 1, 'q0': 0, 'c0': 100_000, 'sigma': 0.15, 'drift': 0.005, 'gamma': 0.95, 'itp': 0.2, 'ms': 0.03, 'tf': 0.5}
+
     for sigma in params['sigma']:
         params_copy = base_params.copy()
         params_copy['sigma'] = sigma
@@ -77,6 +79,10 @@ def train_all_models():
         params_copy = base_params.copy()
         params_copy['q0'] = inventory
         train_and_save_model(params_copy, 'inventory', inventory)
+
+    train_and_save_model(base_params, 'liquid', '')
+
+    train_and_save_model(illiquid_params, 'illiquid', '')
 
 if __name__ == "__main__":
     train_all_models()

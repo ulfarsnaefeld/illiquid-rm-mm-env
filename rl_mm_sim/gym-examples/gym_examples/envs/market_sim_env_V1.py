@@ -98,6 +98,8 @@ class MarketSimEnv(gym.Env):
         self.total_noise = 0
         self.total_informed = 0
 
+        self.spread_pnl = 0
+
         self.price_path = []
         self._initiate_price_path()
         return self._get_observation(), {}
@@ -158,12 +160,19 @@ class MarketSimEnv(gym.Env):
             # Stats
             self.total_buys += 1
             self.total_informed += 1
+
+            # PnL
+            self.spread_pnl = (self.price_path[self.minute] - bid_price) * amount
+
         elif next_true_value < bid_price: # Sell Informed Trade
             self.inventory += amount
             self.cash -= amount * bid_price
             # Stats
             self.total_sells += 1
             self.total_informed += 1
+
+            # PnL
+            self.spread_pnl = (ask_price - self.price_path[self.minute]) * amount
 
     def _execute_noise_trade(self, bid_price, ask_price, amount):
         if np.random.rand() < 0.5: # Buy Noise Trade
@@ -172,12 +181,18 @@ class MarketSimEnv(gym.Env):
             # Stats
             self.total_buys += 1
             self.total_noise += 1
+
+            # PnL
+            self.spread_pnl = (self.price_path[self.minute] - bid_price) * amount
         else:
             self.inventory += amount # Sell Noise Trade
             self.cash -= amount * bid_price
             # Stats
             self.total_sells += 1
             self.total_noise += 1
+
+            # PnL
+            self.spread_pnl = (ask_price - self.price_path[self.minute]) * amount
 
     def _calculate_reward(self):
         # PnL Change
@@ -187,9 +202,14 @@ class MarketSimEnv(gym.Env):
         self.last_portfolio_value = current_portfolio_value
 
         # Penalties
-        inventory_penalty = 0.1 * np.abs(self.inventory - self.initial_inventory)
+        inventory_penalty = 0.01 * np.abs(self.inventory - self.initial_inventory)
 
-        return pnLReward - inventory_penalty
+
+        rew = self.spread_pnl - inventory_penalty
+
+        self.spread_pnl = 0
+
+        return rew
 
     def _calculate_rsi(self, prices, period=14):
         if len(prices) < period:
@@ -247,7 +267,7 @@ class MarketSimEnv(gym.Env):
 if __name__ == "__main__":
     env = MarketSimEnv(
             s0=100,
-            T=200,
+            T=390,
             v=True,
             q0=0,
             c0=100_000,
@@ -261,7 +281,7 @@ if __name__ == "__main__":
     check_env(env)
 
     model = DQN('MlpPolicy', env, verbose=1)
-    model.learn(total_timesteps=1_000_000)
+    model.learn(total_timesteps=200_000)
 
     obs, info = env.reset()
     done = False
