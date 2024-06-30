@@ -8,10 +8,11 @@ from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.results_plotter import load_results, ts2xy, plot_results
 from itertools import product
 
+
 class MarketSimEnv(gym.Env):
     metadata = {"render_modes": ["human"], "render_fps": 30}
 
-    def __init__(self, s0, b, T, v, q0, c0, sigma, drift, gamma, itp, os, tf):
+    def __init__(self, s0, T, v, q0, c0, sigma, drift, gamma, itp, ms, tf, itfp=1, seed=None):
         '''
         Description:
             A market making simulator environment.
@@ -24,7 +25,6 @@ class MarketSimEnv(gym.Env):
 
         Parameters:
             s0 (float):             Initial stock price
-            b (float):              Initial value of brecha
             T (float):              Episode duration
             v (float):              Verbose
             q0 (float):             Initial inventory
@@ -33,12 +33,12 @@ class MarketSimEnv(gym.Env):
             drift (float):          Price drift
             gamma (float):          Discount factor
             itp (float):            Percentage of Informed traders
-            os (float):             Optimal spread wanted
+            itfp (floa):            Informed traders future sight distance prices[current_time + itfp]
+            os (float):             Maximum spread
             tf (float):             Trading frequency by investors
         '''
         super().__init__()
         self.s0 = s0
-        self.brecha = b
         self.episode_duration = T
         self.verbose = v
 
@@ -50,13 +50,22 @@ class MarketSimEnv(gym.Env):
         self.gamma = gamma
 
         self.itp = itp
-        self.os = os
+        self.itfp = itfp
+        self.ms = ms
         self.tf = tf
+
+        # Stats
+        self.total_buys = 0
+        self.total_sells = 0
+
+        self.total_noise = 0
+        self.total_informed = 0
+
 
         # Observation space Price, Inventory, Time, RSI
         self.observation_space = gym.spaces.Box(
-            low=  np.array([0.0,      -math.inf,  0.0]),#, 0.0]),
-            high= np.array([math.inf,  math.inf,  T]),#,   math.inf]),
+            low=  np.array([0.0,      -math.inf,  0.0, 0.0]),
+            high= np.array([math.inf,  math.inf,  T, 100.0]),
             dtype=np.float32
             )
 
@@ -68,8 +77,11 @@ class MarketSimEnv(gym.Env):
         #     dtype=np.float32
         #     )
 
-        self.spread_values = np.arange(0, 0.055, 0.005)
-        self.skewness_values = np.arange(-0.85, 0.85, 0.05)
+        spread_incrementor = 0.005
+
+        self.spread_values = np.arange(0, self.ms + spread_incrementor, spread_incrementor)
+
+        self.skewness_values = [-0.8, -0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8]
         self.actions = list(product(self.spread_values, self.skewness_values))
 
         self.action_space = gym.spaces.Discrete(len(self.actions))
@@ -94,14 +106,14 @@ class MarketSimEnv(gym.Env):
         self.current_price = self.price_path[self.minute]
 
         # Extract the spread and skewness from action
-        spread, skewness = self.actions[action]
+        self.spread, self.skewness = self.actions[action]
 
         # Set the bid and ask around the real price
-        bid_price = self.current_price - (spread / 2.0) * (1 - skewness) * self.current_price
-        ask_price = self.current_price + (spread / 2.0) * (1 + skewness) * self.current_price
+        self.bid_price = self.current_price - (self.spread / 2.0) * (1 - self.skewness) * self.current_price
+        self.ask_price = self.current_price + (self.spread / 2.0) * (1 + self.skewness) * self.current_price
 
         # Simulate market reaction to the bid and ask prices
-        self._simulate_market(bid_price, ask_price)
+        self._simulate_market(self.bid_price, self.ask_price)
 
         self.minute += 1
         reward = self._calculate_reward()
@@ -110,7 +122,8 @@ class MarketSimEnv(gym.Env):
         return self._get_observation(), reward, done, False,{}
 
     def _get_observation(self):
-        return np.array([self.current_price, self.inventory, self.minute], dtype=np.float32)
+        rsi = self._calculate_rsi(self.price_path[:self.minute + 1]) if self.minute >= 14 else 50
+        return np.array([self.current_price, self.inventory, self.minute, rsi], dtype=np.float32)
 
     def _initiate_price_path(self):
         dt = 1 / self.episode_duration
@@ -136,21 +149,33 @@ class MarketSimEnv(gym.Env):
                 self._execute_noise_trade(bid_price, ask_price, amount)
 
     def _execute_informed_trade(self, bid_price, ask_price, amount):
-        next_true_value = self.price_path[self.minute + 1] if self.minute + 1 < self.episode_duration else self.current_price
+        next_true_value = self.price_path[self.minute + self.itfp] if self.minute + self.itfp < self.episode_duration else self.current_price
         if next_true_value > ask_price: # Buy Informed Trade
             self.inventory -= amount
             self.cash += amount * ask_price
+            # Stats
+            self.total_buys += 1
+            self.total_informed += 1
         elif next_true_value < bid_price: # Sell Informed Trade
             self.inventory += amount
             self.cash -= amount * bid_price
+            # Stats
+            self.total_sells += 1
+            self.total_informed += 1
 
     def _execute_noise_trade(self, bid_price, ask_price, amount):
         if np.random.rand() < 0.5: # Buy Noise Trade
             self.inventory -= amount
             self.cash += amount * ask_price
+            # Stats
+            self.total_buys += 1
+            self.total_noise += 1
         else:
             self.inventory += amount # Sell Noise Trade
             self.cash -= amount * bid_price
+            # Stats
+            self.total_sells += 1
+            self.total_noise += 1
 
     def _calculate_reward(self):
         # PnL Change
@@ -164,29 +189,60 @@ class MarketSimEnv(gym.Env):
 
         return pnLReward - inventory_penalty
 
+    def _calculate_rsi(self, prices, period=14):
+        if len(prices) < period:
+            return 50.0  # Return a neutral value if there's not enough data
+        deltas = np.diff(prices)
+        seed = deltas[:period]
+        up = seed[seed >= 0].sum() / period
+        down = -seed[seed < 0].sum() / period
+        rs = up / down if down != 0 else 0
+        rsi = np.zeros_like(prices)
+        rsi[:period] = 100. - 100. / (1. + rs)
+
+        for i in range(period, len(prices)):
+            delta = deltas[i - 1]
+
+            if delta > 0:
+                upval = delta
+                downval = 0.
+            else:
+                upval = 0.
+                downval = -delta
+
+            up = (up * (period - 1) + upval) / period
+            down = (down * (period - 1) + downval) / period
+
+            rs = up / down if down != 0 else 0
+            rsi[i] = 100. - 100. / (1. + rs)
+
+        return rsi[-1]
 
     def render(self):
-            print(f"Spread: {self.spread}, Price: {self.current_price}, Cash: {self.cash}, Inventory: {self.inventory} Last reward: {self.cum_rew}")
+        print(f"Bid: {self.bid_price}, Price: {self.current_price}, Ask: {self.ask_price}, Spread: {self.spread}, Skew: {self.skewness}, Cash: {self.cash}, Inventory: {self.inventory} reward: {self.cum_rew}")
+
+    def stats(self):
+        print(f"Total: {self.total_buys + self.total_sells}, Buys: {self.total_buys}, Sells: {self.total_sells}, Noise: {self.total_noise}, Informed: {self.total_informed}")
 
 if __name__ == "__main__":
     env = MarketSimEnv(
-        s0=100,
-        b=0,
-        T=240,
-        v=True,
-        q0=0,
-        c0=10_000,
-        sigma=0.1,
-        drift=0.0001,
-        gamma=.99,
-        itp=0.1,
-        os=0.02,
-        tf=0.5,
-        )
+            s0=100,
+            b=0,
+            T=200,
+            v=True,
+            q0=0,
+            c0=100_000,
+            sigma=0.15,
+            drift=0.0001,
+            gamma=.99,
+            itp=0.05,
+            itfp=1,
+            ms=0.03,
+            tf=1)
     check_env(env)
 
-    model = DQN('MlpPolicy', env, verbose=1, exploration_fraction=0.5)
-    model.learn(total_timesteps=200_000)
+    model = DQN('MlpPolicy', env, verbose=1)
+    model.learn(total_timesteps=100_000)
 
     obs, info = env.reset()
     done = False
@@ -194,4 +250,6 @@ if __name__ == "__main__":
     while not done:
         action, _states = model.predict(obs)
         obs, reward, done, truncated, info = env.step(action)
-        env.render()
+        #env.render()
+
+    env.stats()
