@@ -79,6 +79,7 @@ class MarketSimEnv(gym.Env):
 
         self.action_space = gym.spaces.Discrete(len(self.actions))
 
+        self.rsi = 50
         self.render_df: pd.DataFrame = pd.DataFrame(columns=["Bid", "Price", "Ask", "Spread", "Skew", "Cash", "Inventory", "PnL", "RSI"])
 
         self.reset()
@@ -193,6 +194,7 @@ class MarketSimEnv(gym.Env):
 
     def _calculate_rsi(self, prices, period=14):
         if len(prices) < period:
+            self.rsi = 50
             return 50.0  # Return a neutral value if there's not enough data
         deltas = np.diff(prices)
         seed = deltas[:period]
@@ -221,7 +223,7 @@ class MarketSimEnv(gym.Env):
         self.rsi = rsi[-1]
         return rsi[-1]
 
-    def render(self):
+    def render(self, folder_path=''):
         render_data = {
             "Bid": self.bid_price,
             "Price": self.current_price,
@@ -239,7 +241,7 @@ class MarketSimEnv(gym.Env):
         self.render_df = pd.concat([self.render_df, new_data_df], ignore_index=True)
 
         # Save to CSV
-        self.render_df.to_csv("market_sim_render.csv", index=False)
+        self.render_df.to_csv(folder_path+"market_sim_render.csv", index=False)
 
     def stats(self):
         print(f"Total: {self.total_buys + self.total_sells}, Buys: {self.total_buys}, Sells: {self.total_sells}, Noise: {self.total_noise}, Informed: {self.total_informed}")
