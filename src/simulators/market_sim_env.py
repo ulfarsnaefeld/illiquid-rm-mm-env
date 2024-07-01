@@ -80,7 +80,7 @@ class MarketSimEnv(gym.Env):
         self.action_space = gym.spaces.Discrete(len(self.actions))
 
         self.rsi = 50
-        self.render_df: pd.DataFrame = pd.DataFrame(columns=["Bid", "Price", "Ask", "Spread", "Skew", "Cash", "Inventory", "PnL", "RSI"])
+        self.render_df: pd.DataFrame = pd.DataFrame(columns=["Bid", "Price", "Ask", "Spread", "Skew", "Cash", "Inventory", "PnL", "RSI", "Trades", "Informed Trades", "Noise Trades", "Trade Imbalance"])
 
         self.reset()
 
@@ -98,6 +98,7 @@ class MarketSimEnv(gym.Env):
         self.total_sells = 0
         self.total_noise = 0
         self.total_informed = 0
+        self.volume_imbalance = 0
 
         self.price_path = []
         self._initiate_price_path()
@@ -159,12 +160,14 @@ class MarketSimEnv(gym.Env):
             # Stats
             self.total_buys += 1
             self.total_informed += 1
+            self.volume_imbalance += amount
         elif next_true_value < bid_price: # Sell Informed Trade
             self.inventory += amount
             self.cash -= amount * bid_price
             # Stats
             self.total_sells += 1
             self.total_informed += 1
+            self.volume_imbalance -= amount
 
     def _execute_noise_trade(self, bid_price, ask_price, amount):
         if np.random.rand() < 0.5: # Buy Noise Trade
@@ -173,12 +176,14 @@ class MarketSimEnv(gym.Env):
             # Stats
             self.total_buys += 1
             self.total_noise += 1
+            self.volume_imbalance += amount
         else:
             self.inventory += amount # Sell Noise Trade
             self.cash -= amount * bid_price
             # Stats
             self.total_sells += 1
             self.total_noise += 1
+            self.volume_imbalance -= amount
 
     def _calculate_reward(self):
         # PnL Change
@@ -233,7 +238,11 @@ class MarketSimEnv(gym.Env):
             "Cash": self.cash,
             "Inventory": self.inventory,
             "PnL": self.pnl,
-            "RSI": self.rsi
+            "RSI": self.rsi,
+            "Trades": self.total_buys + self.total_sells,
+            "Informed Trades": self.total_informed,
+            "Noise Trades": self.total_noise,
+            "Trade Imbalance": self.volume_imbalance
         }
         print(render_data)
 
@@ -263,7 +272,7 @@ if __name__ == "__main__":
     check_env(env)
 
     model = DQN('MlpPolicy', env, verbose=1)
-    model.learn(total_timesteps=1_000_000)
+    model.learn(total_timesteps=100_000)
 
     obs, info = env.reset()
     done = False

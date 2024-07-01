@@ -32,7 +32,7 @@ def train_and_save_model(params, param_type, param_value):
 
     # Train the model
     model = DQN("MlpPolicy", env, verbose=1)
-    model.learn(total_timesteps=100000)
+    model.learn(total_timesteps=500_000)
 
     # Save the model
     model.save(os.path.join(log_dir, f'market_making_DQN'))
