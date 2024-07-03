@@ -74,7 +74,7 @@ class MarketSimEnv(gym.Env):
 
         self.spread_values = np.arange(0, self.ms + spread_incrementor, spread_incrementor)
 
-        self.skewness_values = [-0.8, -0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8]
+        self.skewness_values = [-0.8, -0.4, 0, 0.4, 0.8]
         self.actions = list(product(self.spread_values, self.skewness_values))
 
         self.action_space = gym.spaces.Discrete(len(self.actions))
@@ -262,17 +262,17 @@ if __name__ == "__main__":
             v=True,
             q0=0,
             c0=100_000,
-            sigma=0.15,
-            drift=0.0001,
+            sigma=0.2,
+            drift=0.01,
             gamma=.99,
-            itp=0.20,
+            itp=0.2,
             itfp=2,
             ms=0.03,
-            tf=1)
+            tf=5)
     check_env(env)
 
     model = DQN('MlpPolicy', env, verbose=1)
-    model.learn(total_timesteps=100_000)
+    model.learn(total_timesteps=200_000)
 
     obs, info = env.reset()
     done = False
