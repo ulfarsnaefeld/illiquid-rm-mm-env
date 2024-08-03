@@ -158,7 +158,7 @@ class SeededMarketSimEnv(gym.Env):
         trade_occurrence = self.np_random.poisson(self.tf)
 
         for _ in range(trade_occurrence):
-            amount = 5#self.np_random(1, 10)
+            amount = self.np_random(1, 10)
 
             if self.np_random.random() < self.itp:
                 # Informed trader makes a trade
