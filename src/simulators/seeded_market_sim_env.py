@@ -22,7 +22,7 @@ class SeededMarketSimEnv(gym.Env):
             Spread, Spread Skewness
 
         Observation space:
-            Current Price, Inventory, Time, RSI,
+            Current Price, Inventory
 
         Parameters:
             s0 (float):             Initial stock price
@@ -55,20 +55,12 @@ class SeededMarketSimEnv(gym.Env):
         self.ms = ms
         self.tf = tf
 
-        # Observation space Price, Inventory, Time, RSI
+        # Observation space Price, Inventory, RSI
         self.observation_space = gym.spaces.Box(
-            low=  np.array([0.0,      -math.inf,  0.0, 0.0]),
-            high= np.array([math.inf,  math.inf,  T, 100.0]),
+            low=  np.array([0.0,      -math.inf]),
+            high= np.array([math.inf,  math.inf]),
             dtype=np.float32
             )
-
-        # Action space
-        # Define the action space 0-5% Spread and skewness from -.8 to .8
-        # self.action_space = gym.spaces.Box(
-        #     low=  np.array([0.0, -0.8]),
-        #     high= np.array([5.0,  0.8]),
-        #     dtype=np.float32
-        #     )
 
         spread_incrementor = 0.005
 
@@ -142,7 +134,7 @@ class SeededMarketSimEnv(gym.Env):
 
     def _get_observation(self):
         rsi = self._calculate_rsi(self.price_path[:self.minute + 1]) if self.minute >= 14 else 50
-        return np.array([self.current_price, self.inventory, self.minute, rsi], dtype=np.float32)
+        return np.array([self.current_price, self.inventory], dtype=np.float32)
 
     def _initiate_price_path(self):
         dt = 1 / self.episode_duration
@@ -158,7 +150,7 @@ class SeededMarketSimEnv(gym.Env):
         trade_occurrence = self.np_random.poisson(self.tf)
 
         for _ in range(trade_occurrence):
-            amount = self.np_random(1, 10)
+            amount = 5#self.np_random(1, 10)
 
             if self.np_random.random() < self.itp:
                 # Informed trader makes a trade
@@ -168,7 +160,7 @@ class SeededMarketSimEnv(gym.Env):
                 self._execute_noise_trade(bid_price, ask_price, amount)
 
     def _execute_informed_trade(self, bid_price, ask_price, amount):
-        next_true_value = self.price_path[self.minute + self.itfp] if self.minute + self.itfp < self.episode_duration else self.current_price
+        next_true_value = self.price_path[self.minute + self.itfp] if self.minute + self.itfp < self.episode_duration else self.price_path[self.episode_duration-1]
         if next_true_value > ask_price: # Buy Informed Trade
             self.inventory -= amount
             self.cash += amount * ask_price
@@ -208,7 +200,7 @@ class SeededMarketSimEnv(gym.Env):
         self.last_portfolio_value = current_portfolio_value
 
         # Penalties
-        inventory_penalty = 0.1 * np.abs(self.inventory - self.initial_inventory)
+        inventory_penalty = 1.0 * np.abs(self.inventory - self.initial_inventory)
 
         return pnLReward - inventory_penalty
 
