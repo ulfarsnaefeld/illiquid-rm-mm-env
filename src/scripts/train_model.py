@@ -13,9 +13,7 @@ from simulators import SeededMarketSimEnv
 
 # Define the parameter sets
 params = {
-    'sigma': [0.05, 0.1, 0.15],
-    'drift': [0.001, 0.005, 0.01],
-    'gamma': [0.99, 0.95, 0.9],
+    'sigma': [0.1, 0.15, 0.2],
     'itp': [0.5, 0.1, 0.2],
     'ms': [0.01, 0.03, 0.05],
     'tf': [0.5, 1, 2],
@@ -40,7 +38,7 @@ def train_and_save_model(params, param_type, param_value, current_time, model_ty
         DQN("MlpPolicy", env, verbose=1))
 
     # Train the model
-    model.learn(total_timesteps=200_000)
+    model.learn(total_timesteps=100_000)
 
     # Save the model
     model.save(os.path.join(log_dir, f'market_making_{model_type}'))
@@ -54,11 +52,18 @@ def train_all_models():
     seeds_df = pd.read_csv('seeds.csv')
     seed_sequence = seeds_df['seed'].tolist()
 
-    base_params = {'s0': 100, 'T': 400, 'v': 1, 'q0': 0, 'c0': 100_000, 'sigma': 0.1, 'drift': 0.01, 'gamma': 0.99, 'itp': 0.2, 'ms': 0.03, 'tf': 1, 'itfp': 10, 'seed_sequence': seed_sequence}
-    illiquid_params = {'s0': 100, 'T': 400, 'v': 1, 'q0': 0, 'c0': 100_000, 'sigma': 0.2, 'drift': 0.01, 'gamma': 0.99, 'itp': 0.5, 'ms': 0.03, 'tf': 0.5, 'itfp': 10 ,'seed_sequence': seed_sequence}
+    base_params = {'s0': 100, 'T': 100, 'v': 1, 'q0': 0, 'c0': 100_000, 'sigma': 0.1, 'drift': 0.01, 'gamma': 0.99, 'itp': 0.2, 'ms': 0.03, 'tf': 1, 'itfp': 10, 'seed_sequence': seed_sequence}
+    illiquid_params = {'s0': 100, 'T': 100, 'v': 1, 'q0': 0, 'c0': 100_000, 'sigma': 0.15, 'drift': 0.01, 'gamma': 0.99, 'itp': 0.6, 'ms': 0.03, 'tf': 0.5, 'itfp': 10 ,'seed_sequence': seed_sequence}
 
     # Different types of RL models provided by stable_baselines3
-    model_types = ["DQN", "PPO", "A2C"]
+    model_types = ["DQN"]#, "PPO", "A2C"]
+
+
+    for model_type in model_types:
+        train_and_save_model(base_params, 'liquid', '', current_time, model_type)
+
+    for model_type in model_types:
+        train_and_save_model(illiquid_params, 'illiquid', '', current_time, model_type)
 
     # for sigma in params['sigma']:
     #     params_copy = base_params.copy()
@@ -108,17 +113,6 @@ def train_all_models():
     #     for model_type in model_types:
     #         train_and_save_model(params_copy, 'itfp', itfp, current_time, model_type)
 
-    # for itfp in params['itfp']:
-    #     params_copy = base_params.copy()
-    #     params_copy['itfp'] = itfp
-    #     for model_type in model_types:
-    #         train_and_save_model(params_copy, 'itfp', itfp, current_time, model_type)
-
-    for model_type in model_types:
-        train_and_save_model(base_params, 'liquid', '', current_time, model_type)
-
-    for model_type in model_types:
-        train_and_save_model(illiquid_params, 'illiquid', '', current_time, model_type)
 
 if __name__ == "__main__":
     for i in range (5):
