@@ -193,16 +193,31 @@ class SeededMarketSimEnv(gym.Env):
             self.volume_imbalance -= amount
 
     def _calculate_reward(self):
-        # PnL Change
+       # 1. PnL Change (Primary Reward Component)
         current_portfolio_value = self.inventory * self.current_price + self.cash
-        pnLReward = current_portfolio_value - self.last_portfolio_value
-        self.pnl += pnLReward
+        pnl_reward = current_portfolio_value - self.last_portfolio_value
+        self.pnl += pnl_reward
         self.last_portfolio_value = current_portfolio_value
 
-        # Penalties
-        inventory_penalty = 1.0 * np.abs(self.inventory - self.initial_inventory)
+        # 2. Inventory Penalty (Risk Management)
+        inventory_penalty = 0.2 * np.abs(self.inventory - self.initial_inventory)
 
-        return pnLReward - inventory_penalty
+        # 4. Inventory-based Skewness Reward
+        skewness_reward = 0
+
+        if self.inventory > 0:
+            # Positive inventory (long position), encourage buying by skewing towards a higher ask price
+            if self.skewness < 0:
+                skewness_reward = 0.4 * self.skewness * np.abs(self.inventory)
+        elif self.inventory < 0:
+            # Negative inventory (short position), encourage selling by skewing towards a lower bid price
+            if self.skewness > 0:
+                skewness_reward = 0.4 * np.abs(self.skewness) * np.abs(self.inventory)
+
+        # Final reward calculation
+        reward = pnl_reward - inventory_penalty + skewness_reward
+
+        return reward
 
     def _calculate_rsi(self, prices, period=14):
         if len(prices) < period:

@@ -7,7 +7,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from simulators import SeededMarketSimEnv
 
 params = {
-    'sigma': [0.05, 0.1, 0.15],
+    'sigma': [0.1, 0.15, 0.2],
     'drift': [0.001, 0.005, 0.01],
     'gamma': [0.99, 0.95, 0.9],
     'itp': [0.5, 0.1, 0.2],
@@ -18,7 +18,7 @@ params = {
 }
 
 def run_simulation_and_save(params, param_type, param_value, model_type='DQN'):
-    model_path = f'src/models/trained_models/{model_type}/{param_type}/{param_value}/market_making_{model_type}'
+    model_path = f'src/models/trained_models/12-08-2024_14:38/{model_type}/{param_type}/{param_value}/market_making_{model_type}'
 
     model = (
         A2C.load(model_path) if model_type == 'A2C' else
@@ -28,7 +28,7 @@ def run_simulation_and_save(params, param_type, param_value, model_type='DQN'):
 
     env = SeededMarketSimEnv(**params)
 
-    data_path = f'src/data/{model_type}/{param_type}/{param_value}'
+    data_path = f'src/data/12-08-2024_14:38/liquid/{model_type}/{param_type}/{param_value}'
     os.makedirs(data_path, exist_ok=True)
 
     obs, info = env.reset()
@@ -36,16 +36,15 @@ def run_simulation_and_save(params, param_type, param_value, model_type='DQN'):
     while not done:
         action, _states = model.predict(obs)
         obs, reward, done, truncated, info = env.step(action)
-        env.render(folder_path=f'src/data/{model_type}/{param_type}/{param_value}/')
+        env.render(folder_path=f'src/data/12-08-2024_14:38/liquid/{model_type}/{param_type}/{param_value}/')
 
 
 def run_all_simulations():
     seeds_df = pd.read_csv('seeds.csv')
     seed_sequence = seeds_df['seed'].tolist()
 
-    base_params = {'s0': 100, 'T': 400, 'v': 1, 'q0': 0, 'c0': 100_000, 'sigma': 0.2, 'drift': 0.01, 'gamma': 0.99, 'itp': 0.5, 'ms': 0.03, 'tf': 1, 'itfp': 10, 'seed_sequence': seed_sequence[:3]}
-
-    illiquid_params = {'s0': 100, 'T': 100, 'v': 1, 'q0': 0, 'c0': 100_000, 'sigma': 0.25, 'drift': 0.01, 'gamma': 0.99, 'itp': 0.7, 'ms': 0.03, 'tf': 0.5, 'itfp': 10, 'seed_sequence': seed_sequence[:3]}
+    base_params = {'s0': 100, 'T': 200, 'v': 1, 'q0': 0, 'c0': 100_000, 'sigma': 0.025, 'drift': 0.005, 'gamma': 0.95, 'itp': 0.1, 'ms': 0.02, 'tf': 2, 'itfp': 10, 'seed_sequence': seed_sequence[11:]}
+    illiquid_params = {'s0': 100, 'T': 200, 'v': 1, 'q0': 0, 'c0': 100_000, 'sigma': 0.05, 'drift': 0.005, 'gamma': 0.95, 'itp': 0.2, 'ms': 0.02, 'tf': 1, 'itfp': 10 ,'seed_sequence': seed_sequence[2:]}
 
     # Different types of RL models provided by stable_baselines3
     model_types = ["DQN", "PPO", "A2C"]
@@ -103,7 +102,7 @@ def run_all_simulations():
         run_simulation_and_save(base_params, 'liquid', '', model_type)
 
     for model_type in model_types:
-        run_simulation_and_save(illiquid_params, 'illiquid', '', model_type)
+        run_simulation_and_save(base_params, 'illiquid', '', model_type)
 
 
 if __name__ == "__main__":
