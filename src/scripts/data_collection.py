@@ -49,53 +49,53 @@ def run_all_simulations():
     # Different types of RL models provided by stable_baselines3
     model_types = ["DQN", "PPO", "A2C"]
 
-    # for sigma in params['sigma']:
-    #     params_copy = base_params.copy()
-    #     params_copy['sigma'] = sigma
-    #     for model_type in model_types:
-    #         run_simulation_and_save(params_copy, 'sigma', sigma, model_type)
+    for sigma in params['sigma']:
+        params_copy = base_params.copy()
+        params_copy['sigma'] = sigma
+        for model_type in model_types:
+            run_simulation_and_save(params_copy, 'sigma', sigma, model_type)
 
-    # for drift in params['drift']:
-    #     params_copy = base_params.copy()
-    #     params_copy['drift'] = drift
-    #     for model_type in model_types:
-    #         run_simulation_and_save(params_copy, 'drift', drift, model_type)
+    for drift in params['drift']:
+        params_copy = base_params.copy()
+        params_copy['drift'] = drift
+        for model_type in model_types:
+            run_simulation_and_save(params_copy, 'drift', drift, model_type)
 
-    # for gamma in params['gamma']:
-    #     params_copy = base_params.copy()
-    #     params_copy['gamma'] = gamma
-    #     for model_type in model_types:
-    #         run_simulation_and_save(params_copy, 'gamma', gamma, model_type)
+    for gamma in params['gamma']:
+        params_copy = base_params.copy()
+        params_copy['gamma'] = gamma
+        for model_type in model_types:
+            run_simulation_and_save(params_copy, 'gamma', gamma, model_type)
 
-    # for itp in params['itp']:
-    #     params_copy = base_params.copy()
-    #     params_copy['itp'] = itp
-    #     for model_type in model_types:
-    #         run_simulation_and_save(params_copy, 'itp', itp, model_type)
+    for itp in params['itp']:
+        params_copy = base_params.copy()
+        params_copy['itp'] = itp
+        for model_type in model_types:
+            run_simulation_and_save(params_copy, 'itp', itp, model_type)
 
-    # for ms in params['ms']:
-    #     params_copy = base_params.copy()
-    #     params_copy['ms'] = ms
-    #     for model_type in model_types:
-    #         run_simulation_and_save(params_copy, 'ms', ms, model_type)
+    for ms in params['ms']:
+        params_copy = base_params.copy()
+        params_copy['ms'] = ms
+        for model_type in model_types:
+            run_simulation_and_save(params_copy, 'ms', ms, model_type)
 
-    # for tf in params['tf']:
-    #     params_copy = base_params.copy()
-    #     params_copy['tf'] = tf
-    #     for model_type in model_types:
-    #         run_simulation_and_save(params_copy, 'tf', tf, model_type)
+    for tf in params['tf']:
+        params_copy = base_params.copy()
+        params_copy['tf'] = tf
+        for model_type in model_types:
+            run_simulation_and_save(params_copy, 'tf', tf, model_type)
 
-    # for inventory in params['inventory']:
-    #     params_copy = base_params.copy()
-    #     params_copy['q0'] = inventory
-    #     for model_type in model_types:
-    #         run_simulation_and_save(params_copy, 'inventory', inventory, model_type)
+    for inventory in params['inventory']:
+        params_copy = base_params.copy()
+        params_copy['q0'] = inventory
+        for model_type in model_types:
+            run_simulation_and_save(params_copy, 'inventory', inventory, model_type)
 
-    # for itfp in params['itfp']:
-    #     params_copy = base_params.copy()
-    #     params_copy['itfp'] = 10
-    #     for model_type in model_types:
-    #         run_simulation_and_save(params_copy, 'itfp', itfp, model_type)
+    for itfp in params['itfp']:
+        params_copy = base_params.copy()
+        params_copy['itfp'] = 10
+        for model_type in model_types:
+            run_simulation_and_save(params_copy, 'itfp', itfp, model_type)
 
 
     for model_type in model_types:
